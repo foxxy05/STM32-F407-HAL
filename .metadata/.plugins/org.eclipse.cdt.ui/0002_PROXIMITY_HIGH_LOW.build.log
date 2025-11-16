@@ -1,0 +1,10 @@
+11:48:39 **** Build of configuration Debug for project 0002_PROXIMITY_HIGH_LOW ****
+make -j4 all 
+arm-none-eabi-size  0002_PROXIMITY_HIGH_LOW.elf 
+   text	   data	    bss	    dec	    hex	filename
+   5984	     12	   1572	   7568	   1d90	0002_PROXIMITY_HIGH_LOW.elf
+Finished building: default.size.stdout
+ 
+
+11:48:40 Build Finished. 0 errors, 0 warnings. (took 1s.333ms)
+
