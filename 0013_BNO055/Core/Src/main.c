@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2025 STMicroelectronics.
+  * Copyright (c) 2026 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -64,6 +64,12 @@ char UART_Buffer[100];
 
 uint8_t const resetCommandTrigRegAddr = 0X3F;
 uint8_t resetCommand = 0X20;
+
+uint8_t const callibrationStatusRegAddr = 0x35;
+uint8_t callibrationByte = 0;
+uint8_t const systemCallibrationLevel = 3;
+uint8_t const gyroCallibrationLevel = 3;
+uint8_t const magnetoCallibrationLevel = 2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,7 +83,45 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void BNO055Calibrate(void) {
+    uint8_t sys = 0, gyro = 0, accel = 0, mag = 0;
+    char cal_msg[100];
 
+    uint32_t startTime = HAL_GetTick();
+    uint32_t timeoutValue = 10000;
+
+    // We wait until System and Gyroscope are fully calibrated (3)
+    // and Magnetometer is at least partially calibrated (>0)
+    while (sys < systemCallibrationLevel || gyro < gyroCallibrationLevel || mag < magnetoCallibrationLevel) {
+        // Read Register 0x35
+    	if ((HAL_GetTick() - startTime) > timeoutValue) {
+    		sprintf(cal_msg, "!!! CALIBRATION TIMEOUT - Starting with partial data !!!\r\n");
+    		HAL_UART_Transmit(&huart2, (uint8_t*)cal_msg, strlen(cal_msg), 100);
+    		break; // Exit the while loop
+    	        }
+
+    	HAL_StatusTypeDef callibrationStatus = HAL_I2C_Mem_Read(&hi2c1, BNO055I2CAddr, callibrationStatusRegAddr, I2C_MEMADD_SIZE_8BIT, &callibrationByte, sizeof(callibrationByte), HAL_MAX_DELAY);
+        if (callibrationStatus == HAL_OK) {
+
+            // Bit masking to extract 2-bit values
+            mag   = callibrationByte & 0x03;
+            accel = (callibrationByte >> 2) & 0x03;
+            gyro  = (callibrationByte >> 4) & 0x03;
+            sys   = (callibrationByte >> 6) & 0x03;
+
+            sprintf(cal_msg, "CALIBRATING... [S:%d G:%d A:%d M:%d] - DO THE DANCE!\r\n", sys, gyro, accel, mag);
+            HAL_UART_Transmit(&huart2, (uint8_t*)cal_msg, strlen(cal_msg), HAL_MAX_DELAY);
+        } else {
+            sprintf(cal_msg, "I2C Error during calibration check!\r\n");
+            HAL_UART_Transmit(&huart2, (uint8_t*)cal_msg, strlen(cal_msg), HAL_MAX_DELAY);
+        }
+
+        HAL_Delay(500); // Check every 500ms
+    }
+
+    sprintf(cal_msg, ">>> SENSOR CALIBRATED & READY <<<\r\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)cal_msg, strlen(cal_msg), 100);
+}
 /* USER CODE END 0 */
 
 /**
@@ -112,6 +156,7 @@ int main(void)
   MX_I2C1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+
   uint8_t chipID = 0;
   char msg[50];
 
@@ -127,10 +172,14 @@ int main(void)
   HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 100);
 //  Entering the Config Mode
   HAL_I2C_Mem_Write(&hi2c1, BNO055I2CAddr, BNO055OprModeRegAddr, I2C_MEMADD_SIZE_8BIT, &BNO055ConfigMode, sizeof(BNO055ConfigMode), HAL_MAX_DELAY);
-  HAL_Delay(20);		//Specific delay mentioned for Config Mode according to the BNO055 Datasheet
+  HAL_Delay(20);		//Specific delay mentioned for Config Mode according to the BNO055 Data sheet
   HAL_I2C_Mem_Write(&hi2c1, BNO055I2CAddr, BNO055OprModeRegAddr, I2C_MEMADD_SIZE_8BIT, &BNO055NDOFMode, sizeof(BNO055NDOFMode), HAL_MAX_DELAY);
-  HAL_Delay(10);		//Specific delay mentioned for NDOF Mode according to the BNO055 Datasheet
+  HAL_Delay(10);		//Specific delay mentioned for NDOF Mode according to the BNO055 Data sheet
 
+//  HAL_Delay(2000);
+
+  BNO055Calibrate();
+  //  BNO055 Callibration
   HAL_Delay(2000);
   /* USER CODE END 2 */
 
@@ -160,11 +209,19 @@ int main(void)
 	      HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 100);
 	      HAL_Delay(200);
 
+	      // Reinitializing I2C Peripheral
+	      HAL_I2C_Init(&hi2c1);
 	      // Write to SYS_TRIGGER (0x3F)
 	      HAL_I2C_Mem_Write(&hi2c1, BNO055I2CAddr, resetCommandTrigRegAddr, I2C_MEMADD_SIZE_8BIT, &resetCommand, sizeof(resetCommand), 100);
-
-	      // Critical Delay: The datasheet says wait 650ms after reset
+	      // Critical Delay: The data sheet says wait 650ms after reset
 	      HAL_Delay(700);
+
+	      // Reinitializing config mode
+	      HAL_I2C_Mem_Write(&hi2c1, BNO055I2CAddr, BNO055OprModeRegAddr, I2C_MEMADD_SIZE_8BIT, &BNO055ConfigMode, sizeof(BNO055ConfigMode), HAL_MAX_DELAY);
+	      HAL_Delay(20);		//Specific delay mentioned for Config Mode according to the BNO055 Data sheet
+	      HAL_I2C_Mem_Write(&hi2c1, BNO055I2CAddr, BNO055OprModeRegAddr, I2C_MEMADD_SIZE_8BIT, &BNO055NDOFMode, sizeof(BNO055NDOFMode), HAL_MAX_DELAY);
+	      HAL_Delay(10);		//Specific delay mentioned for NDOF Mode according to the BNO055 Data sheet
+
 
 	      // Second Attempt
 	      HAL_StatusTypeDef status = HAL_I2C_Mem_Read(&hi2c1, BNO055I2CAddr, BNO055MemAddr, I2C_MEMADD_SIZE_8BIT, &chipID, 1, 100);

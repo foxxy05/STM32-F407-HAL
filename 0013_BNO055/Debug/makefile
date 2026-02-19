@@ -60,8 +60,8 @@ all: main-build
 main-build: 0013_BNO055.elf secondary-outputs
 
 # Tool invocations
-0013_BNO055.elf 0013_BNO055.map: $(OBJS) $(USER_OBJS) A:\EVERYTHING\COLLEGE\AUTOMATONS\STM32\0013_BNO055\STM32F411CCUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "0013_BNO055.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"A:\EVERYTHING\COLLEGE\AUTOMATONS\STM32\0013_BNO055\STM32F411CCUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="0013_BNO055.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+0013_BNO055.elf 0013_BNO055.map: $(OBJS) $(USER_OBJS) G:\WINDOWS\EVERYTHING\COLLEGE\AUTOMATONS\STM32_\0013_BNO055\STM32F411CEUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "0013_BNO055.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"G:\WINDOWS\EVERYTHING\COLLEGE\AUTOMATONS\STM32_\0013_BNO055\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="0013_BNO055.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

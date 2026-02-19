@@ -59,8 +59,8 @@ all: main-build
 main-build: 0001_LED_BLINK.elf secondary-outputs
 
 # Tool invocations
-0001_LED_BLINK.elf 0001_LED_BLINK.map: $(OBJS) $(USER_OBJS) A:\EVERYTHING\COLLEGE\AUTOMATONS\STM32\0001_LED_BLINK\STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "0001_LED_BLINK.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"A:\EVERYTHING\COLLEGE\AUTOMATONS\STM32\0001_LED_BLINK\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="0001_LED_BLINK.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+0001_LED_BLINK.elf 0001_LED_BLINK.map: $(OBJS) $(USER_OBJS) G:\WINDOWS\EVERYTHING\COLLEGE\AUTOMATONS\STM32_\0001_LED_BLINK\STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "0001_LED_BLINK.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"G:\WINDOWS\EVERYTHING\COLLEGE\AUTOMATONS\STM32_\0001_LED_BLINK\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="0001_LED_BLINK.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

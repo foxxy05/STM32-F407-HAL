@@ -123,8 +123,8 @@ void PCA9685_SetServoAngle(uint8_t Channel, float Angle)
   float Value;
   // 50 Hz servo then 4095 Value --> 20 milliseconds
   // 0 degree --> 0.5 ms(102.4 Value) and 180 degree --> 2.5 ms(511.9 Value)
-  //GEMINI: 0 degree --> (90 Value) and 180 degree --> (360 Value)
-  Value = (Angle * (360 - 90) / 180.0) + 90;
+  //GEMINI: 0 degree --> (90 Value) and 180 degree --> (350 Value)
+  Value = (Angle * (350 - 90) / 180.0) + 90;
   PCA9685_SetPWM(Channel, 0, (uint16_t)Value);
 }
 /* USER CODE END 0 */
