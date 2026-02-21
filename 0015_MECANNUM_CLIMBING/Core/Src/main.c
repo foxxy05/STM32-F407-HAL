@@ -74,11 +74,11 @@ volatile uint32_t *const LR_RPWM_REG = &(TIM9->CCR2);
 volatile uint32_t *const RR_LPWM_REG = &(TIM4->CCR3);
 volatile uint32_t *const RR_RPWM_REG = &(TIM4->CCR4);
 
-volatile uint32_t *const LiftFront_LPWM_REG = &(TIM12->CCR1);
-volatile uint32_t *const LiftFront_RPWM_REG = &(TIM12->CCR2);
+volatile uint32_t *const upFront_LPWM_REG = &(TIM12->CCR1);
+volatile uint32_t *const upFront_RPWM_REG = &(TIM12->CCR2);
 
-volatile uint32_t *const LiftRear_LPWM_REG = &(TIM13->CCR1);
-volatile uint32_t *const LiftRear_RPWM_REG = &(TIM14->CCR1);
+volatile uint32_t *const upRear_LPWM_REG = &(TIM13->CCR1);
+volatile uint32_t *const upRear_RPWM_REG = &(TIM14->CCR1);
 
 // MOTOR VARIABLES FOR TIMER CHANNELS
 #define LF_LPWM 3
@@ -89,10 +89,11 @@ volatile uint32_t *const LiftRear_RPWM_REG = &(TIM14->CCR1);
 #define LR_RPWM 2
 #define RR_LPWM 3
 #define RR_RPWM 4
-#define LiftFront_LPWM 1
-#define LiftFront_RPWM 2
-#define LiftRear_LPWM  1
-#define LiftRear_RPWM  1
+
+#define upFront_LPWM 1
+#define upFront_RPWM 2
+#define upRear_LPWM  1
+#define upRear_RPWM  1
 
 
 // DATA VARIABLES
@@ -109,11 +110,24 @@ int16_t wLF = 0, wRF = 0, wLR = 0, wRR = 0;
 int16_t Vx = 0, Vy = 0;
 int16_t VxG = 0, VyG = 0;
 int16_t omega = 0;
+
 // CLIMBING VARIABLES
-bool liftBoth  = false;
-bool liftFront = false;
-bool liftRear  = false;
-bool dropBoth  = false;
+bool upBoth  = false;
+bool upFront = false;
+bool upRear  = false;
+bool downBoth  = false;
+bool downFront = false;
+bool downRear  = false;
+
+//typedef enum{
+//	climbStop = 0,
+//	climbUpBoth,
+//	climbUpFront,
+//	climbUpRear,
+//	climbDownBoth,
+//	climbDownFront,
+//	climbDownRear
+//}limbingState_t;
 
 // PID
 //float currentTime = 0;
@@ -152,16 +166,14 @@ void printPS(){
     int len = sprintf(bufferMsg, "LX:%d  LY:%d L2:%d  R2:%d  BTN:%d\r\n",
                       receivedData[0], receivedData[1], receivedData[2],
                       receivedData[3], receivedData[4]);
-    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart2, (uint8_t*)bufferMsg, len, HAL_MAX_DELAY);
 }
 
 // CONSTRAIN FUNCTION
 int constrain(int val, int min, int max){
-	if(val >= max)			val = max;
-	else if (val <= min) 	val = min;
-	else 					val = val;
-
-	return val;
+	if(val >= max)			return max;
+	else if (val <= min) 	return min;
+	else 				    return val;
 }
 
 // MAP FUNCTION
@@ -169,6 +181,7 @@ long map(long val, long oldMin, long oldMax, long newMin, long newMax){
 	return (val - oldMin) * (newMax  - newMin) / (oldMax - oldMin) + newMin;
 }
 
+// COMM-MAP
 void reMapComm(){
 	receivedData[0] = map(receivedData[0], 0, 255, -127, 127);
 	receivedData[1] = map(receivedData[1], 0, 255, -127, 127);
@@ -176,16 +189,16 @@ void reMapComm(){
 	receivedData[3] = receivedData[3];
 }
 
+
+// ROTATE FUNCTIONS
 void LFRotate(int PWM){
 	if(PWM < 0){
 		*LF_LPWM_REG = abs(PWM);
 		*LF_RPWM_REG = 0;
-	}
-	else if(PWM > 0){
+	}else if(PWM > 0){
 		*LF_LPWM_REG = 0;
 		*LF_RPWM_REG = abs(PWM);
-	}
-	else{
+	}else{
 		*LF_LPWM_REG = 0;
 		*LF_RPWM_REG = 0;
 	}
@@ -195,12 +208,10 @@ void RFRotate(int PWM){
 	if(PWM < 0){
 		*RF_LPWM_REG = abs(PWM);
 		*RF_RPWM_REG = 0;
-	}
-	else if(PWM > 0){
+	}else if(PWM > 0){
 		*RF_LPWM_REG = 0;
 		*RF_RPWM_REG = abs(PWM);
-	}
-	else{
+	}else{
 		*RF_LPWM_REG = 0;
 		*RF_RPWM_REG = 0;
 	}
@@ -210,12 +221,10 @@ void LRRotate(int PWM){
 	if(PWM < 0){
 		*LR_LPWM_REG = abs(PWM);
 		*LR_RPWM_REG = 0;
-	}
-	else if(PWM > 0){
+	}else if(PWM > 0){
 		*LR_LPWM_REG = 0;
 		*LR_RPWM_REG = abs(PWM);
-	}
-	else{
+	}else{
 		*LR_LPWM_REG = 0;
 		*LR_RPWM_REG = 0;
 	}
@@ -225,50 +234,45 @@ void RRRotate(int PWM){
 	if(PWM < 0){
 		*RR_LPWM_REG = abs(PWM);
 		*RR_RPWM_REG = 0;
-	}
-	else if(PWM > 0){
+	}else if(PWM > 0){
 		*RR_LPWM_REG = 0;
 		*RR_RPWM_REG = abs(PWM);
-	}
-	else{
+	}else{
 		*RR_LPWM_REG = 0;
 		*RR_RPWM_REG = 0;
 	}
 }
 
-void liftFrontMotor(int PWM){
+// CLIMBING FUNCTIONS
+void climbFrontMotor(int PWM){
 	if(PWM < 0){
-		*LiftFront_LPWM_REG = abs(PWM);
-		*LiftFront_RPWM_REG = 0;
-	}
-	else if(PWM > 0){
-		*LiftFront_LPWM_REG = 0;
-		*LiftFront_RPWM_REG = abs(PWM);
-	}
-	else{
-		*LiftFront_LPWM_REG = 0;
-		*LiftFront_RPWM_REG = 0;
+		*upFront_LPWM_REG = abs(PWM);
+		*upFront_RPWM_REG = 0;
+	}else if(PWM > 0){
+		*upFront_LPWM_REG = 0;
+		*upFront_RPWM_REG = abs(PWM);
+	}else{
+		*upFront_LPWM_REG = 0;
+		*upFront_RPWM_REG = 0;
 	}
 }
 
-void liftRearMotor(int PWM){
+void climbRearMotor(int PWM){
 	if(PWM < 0){
-		*LiftRear_LPWM_REG = abs(PWM);
-		*LiftRear_RPWM_REG = 0;
-	}
-	else if(PWM > 0){
-		*LiftRear_LPWM_REG = 0;
-		*LiftRear_RPWM_REG = abs(PWM);
-	}
-	else{
-		*LiftRear_LPWM_REG = 0;
-		*LiftRear_RPWM_REG = 0;
+		*upRear_LPWM_REG = abs(PWM);
+		*upRear_RPWM_REG = 0;
+	}else if(PWM > 0){
+		*upRear_LPWM_REG = 0;
+		*upRear_RPWM_REG = abs(PWM);
+	}else{
+		*upRear_LPWM_REG = 0;
+		*upRear_RPWM_REG = 0;
 	}
 }
 
-void liftBothMotor(int PWM){
-	liftFrontMotor(PWM);
-	liftRearMotor(PWM);
+void upBothMotor(int PWM){
+	climbFrontMotor(PWM);
+	climbRearMotor(PWM);
 }
 
 // PID CONTROL FUNCTION
@@ -346,13 +350,13 @@ int main(void)
   HAL_TIM_PWM_Start(&htim9, LR_RPWM);
 
   // TIMER-12 Enable
-  HAL_TIM_PWM_Start(&htim12, LiftFront_LPWM);
-  HAL_TIM_PWM_Start(&htim12, LiftFront_RPWM);
+  HAL_TIM_PWM_Start(&htim12, upFront_LPWM);
+  HAL_TIM_PWM_Start(&htim12, upFront_RPWM);
 
   // TIMER-13 Enable
-  HAL_TIM_PWM_Start(&htim13, LiftRear_LPWM);
+  HAL_TIM_PWM_Start(&htim13, upRear_LPWM);
   // TIMER-14 Enable
-  HAL_TIM_PWM_Start(&htim14, LiftRear_RPWM);
+  HAL_TIM_PWM_Start(&htim14, upRear_RPWM);
 
 
 //  TIM3 -> CCR1 = CHASSIS_PWM;	//RF_RPWM
@@ -366,18 +370,17 @@ int main(void)
 //  TIM9 -> CCR1 = CHASSIS_PWM;	//LR_LPWM
 //  TIM9 -> CCR2 = CHASSIS_PWM;	//LR_RPWM
 //
-//  TIM12 -> CCR1 = CLIMBING_PWM;	//LiftFront_LPWM
-//  TIM12 -> CCR2 = CLIMBING_PWM;	//LiftFront_RPWM
+//  TIM12 -> CCR1 = CLIMBING_PWM;	//upFront_LPWM
+//  TIM12 -> CCR2 = CLIMBING_PWM;	//upFront_RPWM
 //
-//  TIM13 -> CCR1 = CLIMBING_PWM;	//LiftRear_LPWM
-//  TIM14 -> CCR1 = CLIMBING_PWM;	//LiftRear_RPWM
+//  TIM13 -> CCR1 = CLIMBING_PWM;	//upRear_LPWM
+//  TIM14 -> CCR1 = CLIMBING_PWM;	//upRear_RPWM
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+  while (1){
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -388,61 +391,98 @@ int main(void)
 	  wRR = 0;
 	  Vx = 0, Vy = 0;
 	  omega = 0;
-	  liftBoth = liftFront = liftRear = dropBoth = false;
+	  upBoth = upFront = upRear = downBoth = downFront = downRear = false;
 
 	  // COMMUNICATION
-	  HAL_I2C_Master_Receive(&hi2c2, slaveAddr, receivedData, sizeof(receivedData), HAL_MAX_DELAY);
-	  reMapComm();
+	  HAL_StatusTypeDef readStatus = HAL_I2C_Master_Receive(&hi2c2, slaveAddr << 1, receivedData, sizeof(receivedData), HAL_MAX_DELAY);
 
-	  Vy = receivedData[0];  //Y-Component of the Joy stick is the X component of the Chassis
-	  Vx = receivedData[1];
-	  omega = receivedData[2] - receivedData[3];
+	  if(HAL_OK == readStatus){
+		  	  reMapComm();
 
-	  liftBoth  = (receivedData[4] & 0b10000000) ? 1 : 0;
-	  liftFront = (receivedData[4] & 0b01000000) ? 1 : 0;
-	  liftRear  = (receivedData[4] & 0b00100000) ? 1 : 0;
-	  dropBoth  = (receivedData[4] & 0b00010000) ? 1 : 0;
+		  	  Vy = receivedData[0];  //Y-Component of the Joy stick is the X component of the Chassis
+		  	  Vx = receivedData[1];
+		  	  omega = receivedData[2] - receivedData[3];
 
-	  VxG = Vx;
-	  VyG = Vy;
+		  	  upBoth    = (receivedData[4] & 0b10000000) ? 1 : 0;
+		  	  upFront   = (receivedData[4] & 0b01000000) ? 1 : 0;
+		  	  upRear    = (receivedData[4] & 0b00100000) ? 1 : 0;
+		  	  downBoth  = (receivedData[4] & 0b00010000) ? 1 : 0;
+		  	  downFront = (receivedData[4] & 0b00001000) ? 1 : 0;
+		  	  downRear  = (receivedData[4] & 0b00000100) ? 1 : 0;
 
-	  // GLOBAL-CONTROL
-//	  VxG = Vx * cos(-theta) - Vy * sin(-theta);  // Local X
-//	  VyG = Vx * sin(-theta) + Vy * cos(-theta);  // Local Y
+		  	  VxG = Vx;
+		  	  VyG = Vy;
 
-	  wLF = constrain(constVector * (VxG + VyG - omega), -maxPWM, maxPWM);
-	  wRF = constrain(constVector * (VxG - VyG + omega), -maxPWM, maxPWM);
-	  wLR = constrain(constVector * (VxG - VyG - omega), -maxPWM, maxPWM);
-	  wRR = constrain(constVector * (VxG + VyG + omega), -maxPWM, maxPWM);
+		  	  // GLOBAL-CONTROL
+		  //	  VxG = Vx * cos(-theta) - Vy * sin(-theta);  // Local X
+		  //	  VyG = Vx * sin(-theta) + Vy * cos(-theta);  // Local Y
 
-	  LFRotate(wLF);
-	  RFRotate(wRF);
-	  LRRotate(wLR);
-	  RRRotate(wRR);
+		  	  wLF = constrain(constVector * (VxG + VyG - omega), -maxPWM, maxPWM);
+		  	  wRF = constrain(constVector * (VxG - VyG + omega), -maxPWM, maxPWM);
+		  	  wLR = constrain(constVector * (VxG - VyG - omega), -maxPWM, maxPWM);
+		  	  wRR = constrain(constVector * (VxG + VyG + omega), -maxPWM, maxPWM);
 
-	  if(liftFront){
-		  liftFrontMotor(CLIMBING_PWM);
-		  liftRearMotor(STOP_PWM);
-	  }
-	  else if(liftRear){
-		  liftFrontMotor(STOP_PWM);
-		  liftRearMotor(CLIMBING_PWM);
-	  }
-	  else if(liftBoth){
-		  liftFrontMotor(CLIMBING_PWM);
-	  	  liftRearMotor(CLIMBING_PWM);
-	  }
-	  else if(dropBoth){
-		  liftFrontMotor(-CLIMBING_PWM);
-		  liftRearMotor(-CLIMBING_PWM);
+		  	  LFRotate(wLF);
+		  	  RFRotate(wRF);
+		  	  LRRotate(wLR);
+		  	  RRRotate(wRR);
+
+		  	  if(upFront){
+		  		  climbFrontMotor(CLIMBING_PWM);
+		  		  climbRearMotor(STOP_PWM);
+		  	  }
+		  	  else if(upRear){
+		  		  climbFrontMotor(STOP_PWM);
+		  		  climbRearMotor(CLIMBING_PWM);
+		  	  }
+		  	  else if(upBoth){
+		  		  climbFrontMotor(CLIMBING_PWM);
+		  	  	  climbRearMotor(CLIMBING_PWM);
+		  	  }
+		  	  else if(downBoth){
+		  		  climbFrontMotor(-CLIMBING_PWM);
+		  		  climbRearMotor(-CLIMBING_PWM);
+		  	  }
+		  	  else if(downFront){
+		  		  climbFrontMotor(-CLIMBING_PWM);
+		  		  climbRearMotor(STOP_PWM);
+		  	  }
+		  	  else if(downRear){
+		  		  climbFrontMotor(STOP_PWM);
+		  		  climbRearMotor(-CLIMBING_PWM);
+		  	  }
+		  	  else{
+		  		  climbFrontMotor(STOP_PWM);
+		  		  climbRearMotor(STOP_PWM);
+		  	  }
+
+
+		  	 printPS();
 	  }
 	  else{
-		  liftFrontMotor(STOP_PWM);
-		  liftRearMotor(STOP_PWM);
+		  HAL_I2C_DeInit(&hi2c2);
+		  HAL_Delay(10);
+		  HAL_I2C_Init(&hi2c2);
+		  HAL_StatusTypeDef readRetryStatus = HAL_I2C_Master_Receive(&hi2c2, slaveAddr << 1, receivedData, sizeof(receivedData), HAL_MAX_DELAY);
+
+		  if(HAL_OK == readRetryStatus){
+			  reMapComm();
+			  char statusMsg[50];
+			      // Format: "LX: 10, LY: -5, L2: 0, R2: 0, Btn: 128\r\n"
+			  int statusLen = sprintf(statusMsg, "I2C Reinitialized! \r\n");
+			  HAL_UART_Transmit(&huart2, (uint8_t*)statusMsg, statusLen, HAL_MAX_DELAY);
+		  }
+		  else{
+			  uint32_t statusError = HAL_I2C_GetError(&hi2c2);
+			  printf("I2C Error: %lu\r\n", statusError);
+
+			  HAL_I2C_DeInit(&hi2c2);
+			  HAL_Delay(5);
+			  HAL_I2C_Init(&hi2c2);
+		  }
+
 	  }
 
-
-	 printPS();
   }
   /* USER CODE END 3 */
 }
@@ -658,7 +698,7 @@ static void MX_TIM9_Init(void)
 
   /* USER CODE END TIM9_Init 1 */
   htim9.Instance = TIM9;
-  htim9.Init.Prescaler = 41;
+  htim9.Init.Prescaler = 20;
   htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim9.Init.Period = 99;
   htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
