@@ -120,7 +120,7 @@ void BNO055Calibrate(void) {
     }
 
     sprintf(cal_msg, ">>> SENSOR CALIBRATED & READY <<<\r\n");
-    HAL_UART_Transmit(&huart2, (uint8_t*)cal_msg, strlen(cal_msg), 100);
+    HAL_UART_Transmit(&huart2, (uint8_t*)cal_msg, strlen(cal_msg), HAL_MAX_DELAY);
 }
 /* USER CODE END 0 */
 
@@ -173,6 +173,9 @@ int main(void)
 //  Entering the Config Mode
   HAL_I2C_Mem_Write(&hi2c1, BNO055I2CAddr, BNO055OprModeRegAddr, I2C_MEMADD_SIZE_8BIT, &BNO055ConfigMode, sizeof(BNO055ConfigMode), HAL_MAX_DELAY);
   HAL_Delay(20);		//Specific delay mentioned for Config Mode according to the BNO055 Data sheet
+  uint8_t powerNormal = 0x00;
+  HAL_I2C_Mem_Write(&hi2c1, BNO055I2CAddr, 0x3E, I2C_MEMADD_SIZE_8BIT, &powerNormal, 1, HAL_MAX_DELAY);
+  HAL_Delay(10);
   HAL_I2C_Mem_Write(&hi2c1, BNO055I2CAddr, BNO055OprModeRegAddr, I2C_MEMADD_SIZE_8BIT, &BNO055NDOFMode, sizeof(BNO055NDOFMode), HAL_MAX_DELAY);
   HAL_Delay(10);		//Specific delay mentioned for NDOF Mode according to the BNO055 Data sheet
 
@@ -224,7 +227,7 @@ int main(void)
 
 
 	      // Second Attempt
-	      HAL_StatusTypeDef status = HAL_I2C_Mem_Read(&hi2c1, BNO055I2CAddr, BNO055MemAddr, I2C_MEMADD_SIZE_8BIT, &chipID, 1, 100);
+	      HAL_StatusTypeDef status = HAL_I2C_Mem_Read(&hi2c1, BNO055I2CAddr, BNO055MemAddr, I2C_MEMADD_SIZE_8BIT, &chipID, 1, HAL_MAX_DELAY);
 
 	      if (status == HAL_OK && chipID == BNO055IDValue) {
 	          sprintf(msg, "BNO055 Recovered! ID: 0x%02X\r\n", chipID);

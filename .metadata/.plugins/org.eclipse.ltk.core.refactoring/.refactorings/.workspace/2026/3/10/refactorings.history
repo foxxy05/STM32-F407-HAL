@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;omni_can&apos; to &apos;0018_3_WHEEL_OMNI_CAN_ODOMETRY&apos;" description="Rename resource &apos;omni_can&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="/omni_can" name="0018_3_WHEEL_OMNI_CAN_ODOMETRY" stamp="1772431233533" updateReferences="true"/>
+</session>

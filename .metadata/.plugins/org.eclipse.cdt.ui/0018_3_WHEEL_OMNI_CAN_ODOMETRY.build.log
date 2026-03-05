@@ -1,0 +1,10 @@
+19:06:07 **** Build of configuration Debug for project 0018_3_WHEEL_OMNI_CAN_ODOMETRY ****
+make -j4 all 
+arm-none-eabi-size  0018_3_WHEEL_OMNI_CAN_ODOMETRY.elf 
+   text	   data	    bss	    dec	    hex	filename
+  70064	    732	   9652	  80448	  13a40	0018_3_WHEEL_OMNI_CAN_ODOMETRY.elf
+Finished building: default.size.stdout
+ 
+
+19:06:10 Build Finished. 0 errors, 0 warnings. (took 2s.463ms)
+
