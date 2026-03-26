@@ -2,50 +2,78 @@
 #define SPIT_H
 
 #include "main.h"
-#include "stdint.h"
+#include <stdint.h>
+
+/* ================= CONFIG ================= */
+#ifndef SPIT_BUFFER_SIZE
+#define SPIT_BUFFER_SIZE 128
+#endif
+
+#ifndef SPIT_TIMEOUT
+#define SPIT_TIMEOUT 10
+#endif
 
 /* ================= INIT ================= */
 void spitDefault(UART_HandleTypeDef *huart);
+void spitCheck(void);
 
 
 /* ================= INTERNAL HANDLERS ================= */
-/* user should NOT call these directly */
+/* Used by _Generic (not meant for direct use ideally) */
 
-void spit_str(const char *str);
-void spit_int(int32_t val);
-void spit_uint(uint32_t val);
-void spit_float(double val);
+void spitStr(const char *str);
+void spitInt(int32_t val);
+void spitUInt(uint32_t val);
+void spitFloatDefault(double val);
+void spitChar(char c);
+void spitLnChar(char c);
 
-void spitln_str(const char *str);
-void spitln_int(int32_t val);
-void spitln_uint(uint32_t val);
-void spitln_float(double val);
+void spitLnStr(const char *str);
+void spitLnInt(int32_t val);
+void spitLnUInt(uint32_t val);
+void spitLnFloatDefault(double val);
 
 
 /* ================= GENERIC MACROS ================= */
 
-/* basic spit */
-#define spit(x) _Generic((x), \
-    char*: spit_str, \
-    const char*: spit_str, \
-    int: spit_int, \
-    unsigned int: spit_uint, \
-    float: spit_float, \
-    double: spit_float \
+#define spit(x) _Generic((x),   \
+    char*: spitStr,             \
+    const char*: spitStr,       \
+    char: spitChar,             \
+    int: spitInt,               \
+    unsigned int: spitUInt,     \
+    float: spitFloatDefault,    \
+    double: spitFloatDefault    \  
 )(x)
 
-/* spitln */
 #define spitln(x) _Generic((x), \
-    char*: spitln_str, \
-    const char*: spitln_str, \
-    int: spitln_int, \
-    unsigned int: spitln_uint, \
-    float: spitln_float, \
-    double: spitln_float \
+    char*: spitLnStr,           \
+    const char*: spitLnStr,     \
+    char: spitChar,             \
+    int: spitLnInt,             \
+    unsigned int: spitLnUInt,   \
+    float: spitLnFloatDefault,  \
+    double: spitLnFloatDefault  \
 )(x)
 
 
 /* ================= PRINTF ================= */
 void spitf(const char *fmt, ...);
+void spitlnf(const char *fmt, ...);
+
+
+/* ================= EXTENDED ================= */
+
+void spitFloat(double val, uint8_t precision);
+void spitLnFloat(double val, uint8_t precision);
+
+void spitHex(uint32_t val);
+void spitLnHex(uint32_t val);
+
+void spitOct(uint32_t val);
+void spitLnOct(uint32_t val);
+
+void spitBin(uint32_t val);
+void spitLnBin(uint32_t val);
 
 #endif

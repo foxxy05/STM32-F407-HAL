@@ -1,88 +1,111 @@
 #include "spit.h"
-#include "string.h"
-#include "stdio.h"
-#include "stdarg.h"
-
-/* ================= CONFIG ================= */
-#define SPIT_BUFFER_SIZE 128
-#define SPIT_TIMEOUT     10
-
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 /* ================= INTERNAL STATE ================= */
-static UART_HandleTypeDef *spit_uart = NULL;
+static UART_HandleTypeDef *spitUart = NULL;
 
+/* ================= SPITCHECK FUNTION ================= */
+void spitCheck(void){
+    if (!spitUart)
+    {
+        /* can't print anything, uart not set */
+        return;
+    }
+
+    spitln("SPIT OK");
+    spitlnf("Buffer : %d bytes", SPIT_BUFFER_SIZE);
+    spitlnf("Timeout: %d ms",    SPIT_TIMEOUT);
+}
 
 /* ================= INIT ================= */
 void spitDefault(UART_HandleTypeDef *huart){
-    spit_uart = huart;
+    spitUart = huart;
 }
-
 
 /* ================= INTERNAL WRITE ================= */
 static void spitWrite(const uint8_t *data, uint16_t len){
-    if (!spit_uart || !data || len == 0)
+    if (!spitUart || !data || len == 0)
         return;
-
-    HAL_UART_Transmit(spit_uart, (uint8_t *)data, len, SPIT_TIMEOUT);
+    HAL_UART_Transmit(spitUart, (uint8_t *)data, len, SPIT_TIMEOUT);
 }
 
-
-/* ================= BASIC HELPERS ================= */
-void spit_str(const char *str){
+/* ================= STRING ================= */
+void spitStr(const char *str){
     if (!str) return;
     spitWrite((uint8_t *)str, strlen(str));
 }
 
-void spitln_str(const char *str){
-    spit_str(str);
-    spit_str("\r\n");
+void spitLnStr(const char *str){
+    if (!str) return;
+    spitStr(str);
+    spitStr("\r\n");
 }
 
+/* ================= CHAR ================= */
+void spitChar(char c){
+    spitWrite((uint8_t *)&c, 1);
+}
 
-/* ================= INTEGER ================= */
-void spit_int(int32_t val){
+void spitLnChar(char c){
+    spitChar(c);
+    spitStr("\r\n");
+}
+
+/* ================= SIGNED INTEGER ================= */
+void spitInt(int32_t val){
     char buf[16];
     snprintf(buf, sizeof(buf), "%ld", val);
-    spit_str(buf);
+    spitStr(buf);
 }
 
-void spitln_int(int32_t val){
-    spit_int(val);
-    spit_str("\r\n");
+void spitLnInt(int32_t val){
+    spitInt(val);
+    spitStr("\r\n");
 }
 
-
-void spit_uint(uint32_t val)
-{
+/* ================= UNSIGNED INTEGER ================= */
+void spitUInt(uint32_t val){
     char buf[16];
     snprintf(buf, sizeof(buf), "%lu", val);
-    spit_str(buf);
+    spitStr(buf);
 }
 
-void spitln_uint(uint32_t val)
-{
-    spit_uint(val);
-    spit_str("\r\n");
+void spitLnUInt(uint32_t val){
+    spitUInt(val);
+    spitStr("\r\n");
 }
 
+/* ================= FLOAT DEFAULT================= */
+void spitFloatDefault(double val){
+    char buf[SPIT_BUFFER_SIZE];
+    snprintf(buf, sizeof(buf), "%.2f", val);
+    spitStr(buf);
+}
 
-/* ================= FLOAT ================= */
+void spitLnFloatDefault(double val){
+    spitFloatDefault(val);
+    spitStr("\r\n");
+}
 
-void spit_float(double val){
+/* ================= FLOAT WITH PRECISION ================= */
+void spitFloat(double val, uint8_t precision){
+    if (precision > 6) precision = 6;
+
+    char fmt[10];
     char buf[SPIT_BUFFER_SIZE];
 
-    /* default precision = 2 */
-    snprintf(buf, sizeof(buf), "%.2f", val);
-    spit_str(buf);
+    snprintf(fmt, sizeof(fmt), "%%.%df", precision);
+    snprintf(buf, sizeof(buf), fmt, val);
+    spitStr(buf);
 }
 
-void spitln_float(double val){
-    spit_float(val);
-    spit_str("\r\n");
+void spitLnFloat(double val, uint8_t precision){
+    spitFloat(val, precision);
+    spitStr("\r\n");
 }
-
-
-/* ================= PRINTF ================= */
+/* ================= PRINTF STYLE================= */
 void spitf(const char *fmt, ...){
     char buf[SPIT_BUFFER_SIZE];
 
@@ -91,5 +114,78 @@ void spitf(const char *fmt, ...){
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
-    spit_str(buf);
+    spitStr(buf);
+}
+
+void spitlnf(const char *fmt, ...){
+    char buf[SPIT_BUFFER_SIZE];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+
+    spitStr(buf);
+    spitStr("\r\n");
+}
+
+/* ================= BASE CONVERSION CORE ================= */
+static void spitBase(uint32_t val, uint8_t base){
+    char buf[33];
+    int i = 0;
+
+    if (val == 0)
+    {
+        spitStr("0");
+        return;
+    }
+
+    while (val > 0){
+        uint8_t digit = val % base;
+        buf[i++] = (digit < 10) ? (digit + '0') : (digit - 10 + 'A');
+        val /= base;
+    }
+
+    /* reverse in place */
+    int left = 0, right = i - 1;
+    while (left < right)
+    {
+        char tmp    = buf[left];
+        buf[left]   = buf[right];
+        buf[right]  = tmp;
+        left++; right--;
+    }
+
+    buf[i] = '\0';
+    spitStr(buf);
+}
+
+/* ================= HEX ================= */
+void spitHex(uint32_t val){
+    spitBase(val, 16);
+}
+
+void spitLnHex(uint32_t val){
+    spitHex(val);
+    spitStr("\r\n");
+}
+
+/* ================= OCTAL ================= */
+void spitOct(uint32_t val){
+    spitBase(val, 8);
+}
+
+void spitLnOct(uint32_t val){
+    spitOct(val);
+    spitStr("\r\n");
+}
+
+/* ================= BINARY ================= */
+void spitBin(uint32_t val){
+    spitBase(val, 2);
+}
+
+void spitLnBin(uint32_t val){
+    spitBin(val);
+    spitStr("\r\n");
 }
